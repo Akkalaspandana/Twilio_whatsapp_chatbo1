@@ -1,0 +1,15 @@
+twilio
+psycopg2-binary
+flask
+python-dotenv
+PyPDF2
+sentence-transformers
+numpy
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+streamlit
+pandas
+plotly
+google-generativeai
