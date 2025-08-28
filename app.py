@@ -15,8 +15,6 @@ import datetime
 import google.generativeai as genai
 
 app = Flask(__name__)
-
-# Database configuration - using direct values
 DB_CONFIG = {
     'host': 'localhost',
     'database': 'your_database_name',
@@ -24,23 +22,17 @@ DB_CONFIG = {
     'password': 'your_password',
     'port': '5432'
 }
-
-# Global variables for PDF processing
 pdf_text = ""
 pdf_chunks = []
 pdf_embeddings = None
 model = None
-
-# Google Calendar API configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-CALENDAR_ID = 'primary'  # Use primary calendar, or specify a specific calendar ID
+CALENDAR_ID = 'primary'  
 
-# Gemini API configuration
-GEMINI_API_KEY = "your_api_keys"  # Replace with your actual API key
+GEMINI_API_KEY = "your_api_keys" 
 genai.configure(api_key=GEMINI_API_KEY)
 
 def extract_pdf_text(pdf_path):
-    """Extract text from PDF file"""
     global pdf_text
     try:
         with open(pdf_path, 'rb') as file:
@@ -55,7 +47,6 @@ def extract_pdf_text(pdf_path):
         return ""
 
 def chunk_text(text, chunk_size=500, overlap=50):
-    """Split text into overlapping chunks"""
     chunks = []
     words = text.split()
     
@@ -70,7 +61,6 @@ def initialize_pdf_processing():
     """Initialize PDF processing and embeddings"""
     global pdf_chunks, pdf_embeddings, model
     
-    # Extract text from PDF
     pdf_path = "invock.pdf"
     if not os.path.exists(pdf_path):
         print(f"PDF file {pdf_path} not found!")
@@ -81,13 +71,11 @@ def initialize_pdf_processing():
         print("Failed to extract text from PDF")
         return False
     
-    # Split into chunks
     pdf_chunks = chunk_text(text)
-    
-    # Initialize sentence transformer model
+
+
     try:
         model = SentenceTransformer('all-MiniLM-L6-v2')
-        # Generate embeddings for all chunks
         pdf_embeddings = model.encode(pdf_chunks)
         print(f"Successfully processed PDF with {len(pdf_chunks)} chunks")
         return True
@@ -96,24 +84,20 @@ def initialize_pdf_processing():
         return False
 
 def cosine_similarity(a, b):
-    """Calculate cosine similarity between two vectors"""
     dot_product = np.dot(a, b)
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
     return dot_product / (norm_a * norm_b)
 
 def find_relevant_chunks(question, top_k=5):
-    """Find most relevant chunks for a given question"""
     global model, pdf_chunks, pdf_embeddings
     
     if model is None or pdf_embeddings is None:
         return []
     
     try:
-        # Encode the question
         question_embedding = model.encode([question])[0]
         
-        # Calculate similarities
         similarities = []
         for chunk_embedding in pdf_embeddings:
             sim = cosine_similarity(question_embedding, chunk_embedding)
@@ -121,7 +105,6 @@ def find_relevant_chunks(question, top_k=5):
         
         similarities = np.array(similarities)
         
-        # Get top k most similar chunks
         top_indices = np.argsort(similarities)[-top_k:][::-1]
         
         relevant_chunks = []
@@ -132,7 +115,6 @@ def find_relevant_chunks(question, top_k=5):
                     'similarity': similarities[idx]
                 })
         
-        # If no chunks meet the threshold, return the top 2 anyway
         if not relevant_chunks and len(pdf_chunks) > 0:
             for idx in top_indices[:2]:
                 relevant_chunks.append({
@@ -146,15 +128,12 @@ def find_relevant_chunks(question, top_k=5):
         return []
 
 def generate_answer(question, relevant_chunks):
-    """Generate an answer using Gemini API based on relevant chunks and question"""
     if not relevant_chunks:
         return "I'm sorry, I couldn't find relevant information in the PDF to answer your question."
     
     try:
-        # Combine relevant chunks
         context = " ".join([chunk['text'] for chunk in relevant_chunks])
         
-        # Create a more detailed and structured prompt for Gemini
         prompt = f"""
         You are an AI assistant that answers questions based on PDF content. Please answer the following question using ONLY the information provided in the context below.
 
@@ -174,14 +153,11 @@ def generate_answer(question, relevant_chunks):
         Answer:
         """
         
-        # Generate response using Gemini
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         
-        # Clean up the response
         answer = response.text.strip()
         
-        # If response is too long, truncate it
         if len(answer) > 500:
             sentences = answer.split('. ')
             truncated_answer = '. '.join(sentences[:3]) + '.'
@@ -195,22 +171,16 @@ def generate_answer(question, relevant_chunks):
         return generate_smart_fallback_answer(question, relevant_chunks)
 
 def generate_smart_fallback_answer(question, relevant_chunks):
-    """Generate a smart fallback answer when Gemini is not available"""
     if not relevant_chunks:
         return "I'm sorry, I couldn't find relevant information in the PDF to answer your question."
     
-    # Combine relevant chunks
     context = " ".join([chunk['text'] for chunk in relevant_chunks])
     
-    # Clean up the context
     context = re.sub(r'\s+', ' ', context).strip()
     
-    # Extract key information based on question type
     question_lower = question.lower()
     
-    # For "what is" questions
     if 'what is' in question_lower or 'what are' in question_lower:
-        # Look for definitions or descriptions
         sentences = re.split(r'[.!?]+', context)
         relevant_sentences = []
         for sentence in sentences:
@@ -219,7 +189,6 @@ def generate_smart_fallback_answer(question, relevant_chunks):
                 relevant_sentences.append(sentence)
         
         if relevant_sentences:
-            # Clean up the sentences and make them more readable
             cleaned_sentences = []
             for sentence in relevant_sentences[:2]:
                 # Remove emojis and extra formatting
@@ -231,9 +200,7 @@ def generate_smart_fallback_answer(question, relevant_chunks):
             if cleaned_sentences:
                 return "Based on the PDF: " + ". ".join(cleaned_sentences) + "."
     
-    # For feature questions
     if any(word in question_lower for word in ['feature', 'capability', 'function', 'tool']):
-        # Look for feature-related content
         sentences = re.split(r'[.!?]+', context)
         feature_sentences = []
         for sentence in sentences:
@@ -242,7 +209,6 @@ def generate_smart_fallback_answer(question, relevant_chunks):
                 feature_sentences.append(sentence)
         
         if feature_sentences:
-            # Clean up and format feature sentences
             cleaned_features = []
             for sentence in feature_sentences[:3]:
                 cleaned = re.sub(r'[📦🚀🛠●✔📞👉]', '', sentence)
@@ -253,9 +219,7 @@ def generate_smart_fallback_answer(question, relevant_chunks):
             if cleaned_features:
                 return "Key features mentioned in the PDF: " + ". ".join(cleaned_features) + "."
     
-    # For benefit questions
     if any(word in question_lower for word in ['benefit', 'advantage', 'help', 'improve']):
-        # Look for benefit-related content
         sentences = re.split(r'[.!?]+', context)
         benefit_sentences = []
         for sentence in sentences:
@@ -264,7 +228,6 @@ def generate_smart_fallback_answer(question, relevant_chunks):
                 benefit_sentences.append(sentence)
         
         if benefit_sentences:
-            # Clean up benefit sentences
             cleaned_benefits = []
             for sentence in benefit_sentences[:2]:
                 cleaned = re.sub(r'[📦🚀🛠●✔📞👉]', '', sentence)
@@ -275,12 +238,10 @@ def generate_smart_fallback_answer(question, relevant_chunks):
             if cleaned_benefits:
                 return "Benefits according to the PDF: " + ". ".join(cleaned_benefits) + "."
     
-    # Default: return first few meaningful sentences
     sentences = re.split(r'[.!?]+', context)
     meaningful_sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
     
     if meaningful_sentences:
-        # Clean up default sentences
         cleaned_sentences = []
         for sentence in meaningful_sentences[:2]:
             cleaned = re.sub(r'[📦🚀🛠●✔📞👉]', '', sentence)
@@ -291,13 +252,11 @@ def generate_smart_fallback_answer(question, relevant_chunks):
         if cleaned_sentences:
             return "Based on the PDF content: " + ". ".join(cleaned_sentences) + "."
     
-    # Last resort: return cleaned context
     cleaned_context = re.sub(r'[📦🚀🛠●✔📞👉]', '', context)
     cleaned_context = re.sub(r'\s+', ' ', cleaned_context).strip()
     return cleaned_context[:300] + "..." if len(cleaned_context) > 300 else cleaned_context
 
 def create_table():
-    """Create the users table if it doesn't exist""" 
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
     
@@ -318,15 +277,12 @@ def create_table():
     conn.close()
 
 def get_google_calendar_service():
-    """Get authenticated Google Calendar service"""
     creds = None
     
-    # Load existing credentials if available
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
             creds = pickle.load(token)
     
-    # If no valid credentials available, let the user log in
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
@@ -339,7 +295,6 @@ def get_google_calendar_service():
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
         
-        # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
     
@@ -351,16 +306,12 @@ def get_google_calendar_service():
         return None
 
 def parse_date_time(date_str, time_str):
-    """Parse date and time strings into datetime object"""
     try:
-        # Handle different date formats
         date_str = date_str.strip().lower()
         time_str = time_str.strip().lower()
         
-        # Get current date
         now = datetime.datetime.now()
         
-        # Parse date
         if 'monday' in date_str or 'mon' in date_str:
             target_date = now + datetime.timedelta(days=(0 - now.weekday()) % 7)
         elif 'tuesday' in date_str or 'tue' in date_str:
@@ -376,7 +327,6 @@ def parse_date_time(date_str, time_str):
         elif 'sunday' in date_str or 'sun' in date_str:
             target_date = now + datetime.timedelta(days=(6 - now.weekday()) % 7)
         else:
-            # Try to parse specific date formats
             for fmt in ['%d %B', '%d %b', '%B %d', '%b %d', '%d/%m', '%m/%d']:
                 try:
                     target_date = datetime.datetime.strptime(date_str, fmt)
@@ -386,11 +336,9 @@ def parse_date_time(date_str, time_str):
                     break
                 except ValueError:
                     continue
-            else:
-                # Default to tomorrow
+        else:
                 target_date = now + datetime.timedelta(days=1)
         
-        # Parse time
         time_str = time_str.replace('am', ' AM').replace('pm', ' PM')
         for fmt in ['%I:%M %p', '%I %p', '%H:%M', '%H']:
             try:
@@ -399,29 +347,24 @@ def parse_date_time(date_str, time_str):
             except ValueError:
                 continue
         else:
-            # Default to 10 AM
+            
             time_obj = datetime.time(10, 0)
         
-        # Combine date and time
         event_datetime = datetime.datetime.combine(target_date.date(), time_obj)
         
         return event_datetime
     except Exception as e:
         print(f"Error parsing date/time: {e}")
-        # Default to tomorrow at 10 AM
         return datetime.datetime.now() + datetime.timedelta(days=1, hours=10)
 
 def create_calendar_event(name, email, business_name, demo_date, demo_time):
-    """Create a Google Calendar event for the demo"""
     try:
         service = get_google_calendar_service()
         if not service:
             return False, "Failed to authenticate with Google Calendar"
         
-        # Parse date and time
         event_datetime = parse_date_time(demo_date, demo_time)
         
-        # Create event
         event = {
             'summary': f'Demo Meeting - {business_name}',
             'description': f'Demo meeting with {name} from {business_name}\nEmail: {email}\nDemo Date: {demo_date}\nDemo Time: {demo_time}',
@@ -453,7 +396,6 @@ def create_calendar_event(name, email, business_name, demo_date, demo_time):
         return False, f"Failed to create calendar event: {str(e)}"
 
 def save_user_data(name, email, business_name, demo_date=None, demo_time=None):
-    """Save user data to PostgreSQL database"""
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
     
@@ -468,8 +410,6 @@ def save_user_data(name, email, business_name, demo_date=None, demo_time=None):
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """Handle incoming WhatsApp messages"""
-    # Get the message from the request
     incoming_msg = request.values.get('Body', '').strip()
     from_number = request.values.get('From', '')
     
@@ -478,7 +418,6 @@ def webhook():
     resp = MessagingResponse()
     msg = resp.message()
     
-    # Check if this is a new conversation or continuing
     if not hasattr(app, 'user_sessions'):
         app.user_sessions = {}
     
@@ -516,7 +455,6 @@ def webhook():
                 session['step'] = 'demo_date'
                 msg.body("Perfect! Let's schedule a demo meeting. What is your preferred date for the demo? (e.g., Monday, Tuesday, or specific date like 15th March)")
             elif user_choice in ['no', 'n', 'skip', 'not now', 'later']:
-                # Skip demo scheduling and go directly to question mode
                 try:
                     print("Saving user data to database (no demo)...")
                     save_user_data(
@@ -528,7 +466,6 @@ def webhook():
                     
                     msg.body("No problem! Your information has been saved. You can now ask me any questions about our services or the PDF content. Type 'help' for options or ask your question directly!")
                     
-                    # Change session to question mode
                     session['step'] = 'question_mode'
                     print("Session moved to question mode (skipped demo)")
                 except Exception as e:
@@ -547,7 +484,6 @@ def webhook():
             session['data']['demo_time'] = incoming_msg
             print(f"Processing demo time: {incoming_msg}")
             
-            # Save to database
             try:
                 print("Saving user data to database...")
                 save_user_data(
@@ -559,7 +495,6 @@ def webhook():
                 )
                 print("User data saved successfully!")
                 
-                # Create Google Calendar event
                 print("Creating Google Calendar event...")
                 calendar_success, calendar_message = create_calendar_event(
                     session['data']['name'],
@@ -575,7 +510,6 @@ def webhook():
                 else:
                     msg.body("Thank you! Your information has been saved. There was an issue creating the calendar event, but we'll contact you about the demo. You can now ask me any questions about our services or the PDF content. Type 'help' for options or ask your question directly!")
                 
-                # Change session to question mode
                 session['step'] = 'question_mode'
                 print("Session moved to question mode")
             except Exception as e:
@@ -584,18 +518,15 @@ def webhook():
                 del app.user_sessions[from_number]
         
         elif session['step'] == 'question_mode':
-            # Handle PDF-related questions
             if incoming_msg.lower() in ['help', 'menu', 'options']:
                 msg.body("You can ask me questions about the PDF content. Just type your question and I'll search for relevant information!")
             elif incoming_msg.lower() in ['quit', 'exit', 'bye']:
                 msg.body("Thank you for using our service! Goodbye!")
                 del app.user_sessions[from_number]
             elif incoming_msg.lower() in ['demo', 'schedule demo', 'book demo', 'demo meeting']:
-                # User wants to schedule a demo from question mode
                 session['step'] = 'demo_date'
                 msg.body("Great! Let's schedule a demo meeting. What is your preferred date for the demo? (e.g., Monday, Tuesday, or specific date like 15th March)")
             else:
-                # Process question about PDF
                 relevant_chunks = find_relevant_chunks(incoming_msg)
                 answer = generate_answer(incoming_msg, relevant_chunks)
                 msg.body(answer)
@@ -605,14 +536,11 @@ def webhook():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
     return {'status': 'healthy', 'pdf_loaded': len(pdf_chunks) > 0}
 
 if __name__ == '__main__':
-    # Create table on startup
     create_table()
     
-    # Initialize PDF processing
     print("Initializing PDF processing...")
     if initialize_pdf_processing():
         print("PDF processing initialized successfully!")
