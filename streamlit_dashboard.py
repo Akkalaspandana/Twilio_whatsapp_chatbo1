@@ -58,9 +58,9 @@ st.markdown("""
 # Database configuration
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'your_database_name',
-    'user': 'your_username',
-    'password': 'your_password',
+    'database': 'invock_db',
+    'user': 'postgres',
+    'password': 'spandana.45@S',
     'port': '5432'
 }
 
