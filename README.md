@@ -22,9 +22,17 @@ pip install -r requirements.txt
 ### Create Database & User
 
 ```sql
-CREATE DATABASE your_database_name;
-CREATE USER your_username WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE your_database_name TO your_username;
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    business_name VARCHAR(100) NOT NULL,
+    demo_date VARCHAR(50),
+    demo_time VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
 ```
 
 ## 4. Environment Configuration
@@ -32,10 +40,6 @@ GRANT ALL PRIVILEGES ON DATABASE your_database_name TO your_username;
 Create a `.env` file in your project root and add:
 
 ```env
-FLASK_ENV=development
-PORT=8080
-SECRET_KEY=your_secret_key_here
-
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=your_database_name
