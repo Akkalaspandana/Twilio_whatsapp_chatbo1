@@ -5,7 +5,6 @@ from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Page configuration
 st.set_page_config(
     page_title="Invock Demo Dashboard",
     page_icon="📊",
@@ -13,7 +12,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for dark theme
 st.markdown("""
 <style>
     .main {
@@ -55,7 +53,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Database configuration
 
 DB_CONFIG = {
     'host': 'localhost',
@@ -67,7 +64,6 @@ DB_CONFIG = {
 
 
 def get_database_connection():
-    """Create database connection"""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         return conn
@@ -76,7 +72,6 @@ def get_database_connection():
         return None
 
 def get_user_data():
-    """Fetch all user data from database"""
     conn = get_database_connection()
     if conn is None:
         return None
@@ -104,32 +99,26 @@ def get_user_data():
         return None
 
 def main():
-    # Header
     st.title("📊 Invock Demo Dashboard")
     st.markdown("---")
     
-    # Sidebar
     st.sidebar.title("🎛️ Dashboard Controls")
     
-    # Refresh button
     if st.sidebar.button("🔄 Refresh Data"):
         st.rerun()
     
-    # Date filter
     st.sidebar.markdown("### 📅 Date Filter")
     date_filter = st.sidebar.selectbox(
         "Filter by date range:",
         ["All Time", "Today", "Last 7 Days", "Last 30 Days", "This Month"]
     )
     
-    # Fetch data
     df = get_user_data()
     
     if df is None or df.empty:
         st.warning("No data available in the database.")
         return
     
-    # Apply date filter
     if date_filter != "All Time":
         today = datetime.now()
         if date_filter == "Today":
@@ -141,7 +130,6 @@ def main():
         elif date_filter == "This Month":
             df = df[df['created_at'].dt.month == today.month]
     
-    # Key Metrics
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -227,10 +215,8 @@ def main():
     
     st.markdown("---")
     
-    # Detailed Data Table
     st.subheader("📋 User Details")
     
-    # Search functionality
     search_term = st.text_input("🔍 Search by name, email, or business:", "")
     
     if search_term:
@@ -242,13 +228,11 @@ def main():
     else:
         filtered_df = df
     
-    # Display data
     if not filtered_df.empty:
         # Format the dataframe for display
         display_df = filtered_df.copy()
         display_df['created_at'] = display_df['created_at'].dt.strftime('%Y-%m-%d %H:%M:%S')
         
-        # Rename columns for better display
         display_df = display_df.rename(columns={
             'id': 'ID',
             'name': 'Name',
@@ -264,8 +248,8 @@ def main():
             use_container_width=True,
             hide_index=True
         )
-        
-        # Export functionality
+
+
         col1, col2 = st.columns(2)
         with col1:
             csv = filtered_df.to_csv(index=False)
@@ -281,7 +265,6 @@ def main():
     else:
         st.warning("No users found matching your search criteria.")
     
-    # Recent Activity
     st.markdown("---")
     st.subheader("🕒 Recent Activity")
     
