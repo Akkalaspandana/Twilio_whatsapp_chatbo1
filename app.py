@@ -19,9 +19,9 @@ app = Flask(__name__)
 # Database configuration - using direct values
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'invock_db',
-    'user': 'postgres',
-    'password': 'spandana.45@S',
+    'database': 'your_database_name',
+    'user': 'your_username',
+    'password': 'your_password',
     'port': '5432'
 }
 
@@ -36,7 +36,7 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 CALENDAR_ID = 'primary'  # Use primary calendar, or specify a specific calendar ID
 
 # Gemini API configuration
-GEMINI_API_KEY = "AIzaSyDBL8xrvbkMHYPCuFhcPCYQ8QavOFcCVhM"  # Replace with your actual API key
+GEMINI_API_KEY = "your_api_keys"  # Replace with your actual API key
 genai.configure(api_key=GEMINI_API_KEY)
 
 def extract_pdf_text(pdf_path):
