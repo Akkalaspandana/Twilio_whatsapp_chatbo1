@@ -56,13 +56,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Database configuration
+
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'invock_db',
-    'user': 'postgres',
-    'password': 'spandana.45@S',
+    'database': 'your_database_name',
+    'user': 'your_username',
+    'password': 'your_password',
     'port': '5432'
 }
+
 
 def get_database_connection():
     """Create database connection"""
